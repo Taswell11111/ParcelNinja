@@ -88,6 +88,7 @@ def search_outbounds(store_name: str, query: str, start_date: datetime, end_date
       - channelId contains query  (Shopify order ref, e.g. D20388)
       - clientId contains query   (internal ref)
       - id contains query         (PNJ ID)
+      - deliveryInfo.trackingNo contains query (Waybill)
     Returns list of fully-detailed event dicts tagged with store_name.
     """
     store = STORES[store_name]
@@ -117,8 +118,10 @@ def search_outbounds(store_name: str, query: str, start_date: datetime, end_date
             s_id = str(summary.get("id", ""))
             s_channel = str(summary.get("channelId") or "").upper()
             s_client = str(summary.get("clientId") or "").upper()
+            d_info = summary.get("deliveryInfo", {})
+            s_waybill = str(d_info.get("trackingNo") or "").upper()
 
-            if q in s_id or q in s_channel or q in s_client:
+            if q in s_id or q in s_channel or q in s_client or q in s_waybill:
                 detail = fetch_outbound_detail(s_id, store)
                 if detail:
                     detail["_store"] = store_name
@@ -135,7 +138,7 @@ def search_outbounds(store_name: str, query: str, start_date: datetime, end_date
 def search_inbounds(store_name: str, query: str, start_date: datetime, end_date: datetime) -> list[dict]:
     """
     Paginate through inbounds and match records where:
-      - channelId, clientId, supplierReference, id contain query
+      - channelId, clientId, supplierReference, id, customer name contain query
     Also used for SHP→RET linking (pass clientId of the outbound).
     """
     store = STORES[store_name]
@@ -166,8 +169,11 @@ def search_inbounds(store_name: str, query: str, start_date: datetime, end_date:
             s_channel = str(summary.get("channelId") or "").upper()
             s_client = str(summary.get("clientId") or "").upper()
             s_supplier = str(summary.get("supplierReference") or "").upper()
+            d_info = summary.get("deliveryInfo", {})
+            p_info = summary.get("pickupInfo", {})
+            s_customer = str(d_info.get("customer") or p_info.get("recipient") or "").upper()
 
-            if q in s_id or q in s_channel or q in s_client or q in s_supplier:
+            if q in s_id or q in s_channel or q in s_client or q in s_supplier or q in s_customer:
                 detail = fetch_inbound_detail(s_id, store)
                 if detail:
                     detail["_store"] = store_name

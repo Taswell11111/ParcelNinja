@@ -27,7 +27,7 @@ STORES = _load_stores()
 
 BASE_URL = "https://storeapi.parcelninja.com/api/v1"
 PAGE_SIZE = 50
-MAX_PAGES = 20  # Safety cap — 20 pages × 50 = 1000 records
+MAX_PAGES = 40  # Safety cap — 40 pages × 50 = 2000 records
 
 INBOUND_STATUS_MAP = {
     200: "Awaiting Arrival",
@@ -433,7 +433,7 @@ st.set_page_config(
     page_title="Parcelninja Search",
     page_icon="📦",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
@@ -544,60 +544,66 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Sidebar: Filters ─────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙️ Search Config")
-    st.markdown("---")
+# ── Search Configuration ────────────────────────────────────────────────────
+main_config_col, help_col = st.columns([3, 1])
 
-    selected_stores = st.multiselect(
-        "Stores",
-        options=list(STORES.keys()),
-        default=list(STORES.keys()),
-        help="Search across selected stores simultaneously",
-    )
+with main_config_col:
+    # Stores and Date Range
+    st.markdown("##### **Stores & Date Range**")
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_stores = st.multiselect(
+            "Stores",
+            options=list(STORES.keys()),
+            default=list(STORES.keys()),
+            help="Search across selected stores simultaneously",
+            label_visibility="collapsed"
+        )
+    with col2:
+        start_date = st.date_input("From", value=datetime.now() - timedelta(days=180))
+        end_date = st.date_input("To", value=datetime.now())
 
-    st.markdown("**Date Range**")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        start_date = st.date_input("From", value=datetime.now() - timedelta(days=180),
-                                   label_visibility="collapsed")
-    with col_b:
-        end_date = st.date_input("To", value=datetime.now(),
-                                 label_visibility="collapsed")
-
-    st.markdown("---")
-    st.markdown("**Search In**")
-    search_outbounds_flag = st.checkbox("Outbounds (Shipments)", value=True)
-    search_inbounds_flag = st.checkbox("Inbounds (Returns / Stock)", value=True)
-    show_linked_returns = st.checkbox("Auto-link Returns to Shipments", value=True,
-                                      help="For each matched shipment, automatically search for linked return inbounds")
-
-    st.markdown("---")
-    st.markdown("""
-    <div style="color:#5f7a9a; font-size:0.78rem; line-height:1.6;">
-        <strong style="color:#8ab4f8;">Search matches against:</strong><br>
-        • Channel ID (Shopify ref, e.g. <code>D20388</code>)<br>
-        • Client Ref (internal ERP ref)<br>
-        • PNJ ID (warehouse ID)<br>
-        • Supplier Ref (inbounds only)<br><br>
-        Results capped at 1,000 records per store per search type.
-    </div>
-    """, unsafe_allow_html=True)
-
-# ── Main Search Bar ──────────────────────────────────────────────────────────
-search_col, btn_col = st.columns([5, 1])
-with search_col:
-    query = st.text_input(
-        "Search Query",
-        placeholder="e.g.  D20388  ·  SHP-1234  ·  PNJ-ID  ·  waybill  ·  client ref",
-        label_visibility="collapsed",
-    )
-    st.markdown('<div class="search-hint">Enter Shopify order number, PNJ ID, client ref, or any reference field</div>',
-                unsafe_allow_html=True)
-
-with btn_col:
     st.markdown("<br>", unsafe_allow_html=True)
-    search_clicked = st.button("🔍 Search", use_container_width=True)
+
+    # Search Bar
+    search_col, btn_col = st.columns([4, 1])
+    with search_col:
+        query = st.text_input(
+            "Search Query",
+            placeholder="e.g.  D20388  ·  SHP-1234  ·  PNJ-ID  ·  waybill  ·  client ref",
+            label_visibility="collapsed",
+        )
+        st.markdown('<div class="search-hint">Enter Shopify order number, PNJ ID, client ref, or any reference field</div>',
+                    unsafe_allow_html=True)
+
+    with btn_col:
+        search_clicked = st.button("🔍 Search", use_container_width=True)
+
+with help_col:
+    # Search In
+    with st.container():
+        st.markdown("##### **Search In**")
+        search_outbounds_flag = st.checkbox("Outbounds (Shipments)", value=True)
+        search_inbounds_flag = st.checkbox("Inbounds (Returns / Stock)", value=True)
+        show_linked_returns = st.checkbox("Auto-link Returns to Shipments", value=True,
+                                          help="For each matched shipment, automatically search for linked return inbounds")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Search Matches Against
+    with st.container():
+         st.markdown("""
+        <div style="color:#5f7a9a; font-size:0.78rem; line-height:1.6; border: 1px solid #2d4a6e; border-radius: 8px; padding: 12px; background: #0d1b2e;">
+            <strong style="color:#8ab4f8;">Search matches against:</strong><br>
+            • Channel ID (Shopify ref, e.g. <code>D20388</code>)<br>
+            • Client Ref (internal ERP ref)<br>
+            • PNJ ID (warehouse ID)<br>
+            • Waybill (outbounds only)<br>
+            • Supplier Ref (inbounds only)<br>
+            • Customer Name<br><br>
+            Results capped at 2,000 records per store per search type.
+        </div>
+        """, unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

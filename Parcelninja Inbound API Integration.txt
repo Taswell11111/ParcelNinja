@@ -1,0 +1,81 @@
+Parcelninja Inbound API Integration Strategy (Stock Inflow)
+
+1. Connection Metadata
+
+Base URL: https://storeapi.parcelninja.com/api/v1
+
+Authentication: Basic Auth (Username/Password)
+
+Stores: Refer to shipment_store_config.md for specific Store IDs.
+
+2. Key Discovery: Multi-Step Retrieval
+
+To accurately report on stock arriving at the warehouse, the system must follow this pattern:
+
+Step A: List Inbounds
+
+Endpoint: /inbounds
+
+Purpose: Find inbounds using startDate and endDate.
+
+Parameters: col=4 (Date Created), colOrder=desc.
+
+Limitation: The summary list does not always reflect the true current warehouse status if processing is mid-way.
+
+Step B: Status & Event History
+
+Endpoint: /inbounds/{id}/events
+
+Purpose: Mandatory for checking real-time status.
+
+Logic: The AI must look at the events array. The event with the highest chronological index (or most recent timestamp) contains the true descriptive status (e.g., "Arrived at warehouse", "Processing complete").
+
+Step C: Reference Resolution
+
+Supplier Reference: Found in supplierReference. This is typically the courier waybill or the Purchase Order number provided by the brand.
+
+Internal Reference: Found in clientId. This is the unique ID from the brand's internal ERP/ordering system.
+
+3. Inbound Status Mapping Table
+
+Code
+
+Description
+
+Action Required
+
+200
+
+Awaiting Arrival
+
+Shipment is still in transit from supplier.
+
+201
+
+Arrived at warehouse
+
+Goods are physically at Parcelninja but not unpacked.
+
+202
+
+Being Processed
+
+Warehouse is currently scanning/counting items.
+
+203
+
+Processing complete
+
+Stock is now available in inventory.
+
+204
+
+Complete with variance
+
+Stock received, but quantities did not match the manifest.
+
+4. Usage in AI Studio
+
+Prompt: "Use parcelninja_inbounds.py as the script template and parcelninja_inbound_integration_guide.md as the schema. Build a report showing all inbounds arriving in the next 48 hours."
+
+Context: Highlight the supplierReference as the primary lookup key for tracking incoming stock.

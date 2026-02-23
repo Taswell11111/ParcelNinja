@@ -1,0 +1,134 @@
+import requests
+import json
+from requests.auth import HTTPBasicAuth
+from datetime import datetime, timedelta
+
+# --- CONFIGURATION ---
+API_USERNAME = "4lQbm0CgLBZQkzIiPnwWnjCQqgEdXsP6mVQ6q7nX24Y="
+API_PASSWORD = "70JK3u4z/IxrGdpdSUE4csPfzlg/wgGTcuAgUgbd+j4="
+STORE_ID = "ea344f50-5af3-4de1-814c-0c45171a2353"
+BASE_URL = "https://storeapi.parcelninja.com/api/v1"
+
+# Global Auth & Cache
+AUTH = HTTPBasicAuth(API_USERNAME, API_PASSWORD)
+HEADERS = {"Accept": "application/json", "X-Store-Id": STORE_ID}
+INVENTORY_NAME_CACHE = {}
+
+def get_inventory_name(sku):
+    """
+    Looks up a SKU in the inventory to find the actual descriptive name.
+    Caches results to avoid redundant API calls.
+    """
+    if not sku or sku == "N/A":
+        return "Unknown Item"
+    
+    if sku in INVENTORY_NAME_CACHE:
+        return INVENTORY_NAME_CACHE[sku]
+    
+    try:
+        url = f"{BASE_URL}/inventory/{sku}"
+        res = requests.get(url, auth=AUTH, headers=HEADERS)
+        if res.status_code == 200:
+            data = res.json()
+            items = data.get('items', [])
+            if items:
+                # The inventory name is usually descriptive (e.g., 'Blue Widget')
+                inv_name = items[0].get('name')
+                INVENTORY_NAME_CACHE[sku] = inv_name
+                return inv_name
+    except Exception:
+        pass
+    
+    # Fallback if lookup fails
+    return sku
+
+def fetch_recent_outbounds(days=3, limit=5):
+    # Calculate Date Range
+    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+    
+    params = {
+        "pageSize": limit,
+        "page": 1,
+        "startDate": start_date,
+        "orderBy": "createDate",
+        "orderDirection": "desc"
+    }
+
+    print(f"Fetching Outbounds created since {start_date} (Last {days} days)...")
+    print("Cross-referencing Inventory for descriptive names...\n")
+
+    try:
+        # Step 1: Identify recent shipments
+        list_url = f"{BASE_URL}/outbounds"
+        res = requests.get(list_url, auth=AUTH, headers=HEADERS, params=params)
+        if res.status_code != 200:
+            print(f"Error {res.status_code}: {res.text}")
+            return
+
+        outbounds_list = res.json().get('outbounds', [])
+        if not outbounds_list:
+            print("No recent outbounds found.")
+            return
+
+        # Step 2: Fetch detailed history for each to get items and RMA fields
+        for i, summary in enumerate(outbounds_list, 1):
+            outbound_id = summary.get('id')
+            detail_url = f"{BASE_URL}/outbounds/{outbound_id}/events"
+            detail_res = requests.get(detail_url, auth=AUTH, headers=HEADERS)
+            
+            if detail_res.status_code == 200:
+                s = detail_res.json()
+                d_info = s.get('deliveryInfo', {})
+                status = s.get('status', {})
+                items = s.get('items', [])
+                billing = d_info.get('courierBillingInfo', {})
+
+                print(f"--- OUTBOUND #{i} ---")
+                print(f"Parcelninja ID: {s.get('id')}")
+                print(f"Channel ID (LSSA): {s.get('channelId') or 'N/A'}")
+                print(f"Client Ref: {s.get('clientId')}")
+                
+                # Courier & Tracking
+                print(f"Status: {status.get('description')} (Code: {status.get('code')})")
+                print(f"Courier: {d_info.get('courierName')}")
+                print(f"Tracking No: {d_info.get('trackingNo')}")
+                
+                print(f"\n[Delivery Info]")
+                print(f"Customer: {d_info.get('customer')}")
+                addr = [d_info.get('addressLine1'), d_info.get('addressLine2'), d_info.get('suburb'), d_info.get('postalCode')]
+                print(f"Address: {', '.join([str(p) for p in addr if p])}")
+                
+                # Items with Name Cross-Referencing
+                print(f"\n[Items Detail - {len(items)} total]")
+                for item in items:
+                    sku = item.get('itemNo') or "N/A"
+                    # Perform inventory lookup for actual name
+                    inventory_name = get_inventory_name(sku)
+                    
+                    qty = item.get('qty') or 0
+                    ret_reason = item.get('returnReason')
+                    ret_detail = item.get('returnDetail')
+                    
+                    print(f"  - SKU: {sku}")
+                    print(f"    Inventory Name: {inventory_name}")
+                    print(f"    Qty: {qty}")
+                    
+                    if ret_reason:
+                        print(f"    Return Reason: {ret_reason}")
+                    if ret_detail:
+                        print(f"    Return Detail: {ret_detail}")
+                    
+                    # Check for Serial Numbers
+                    sn = item.get('SerialNumbers', [])
+                    if sn:
+                        print(f"    Serials: {', '.join(sn)}")
+                
+                print("-" * 40 + "\n")
+            else:
+                print(f"Could not fetch details for ID {outbound_id}")
+
+    except Exception as e:
+        print(f"Request failed: {e}")
+
+if __name__ == "__main__":
+    fetch_recent_outbounds()

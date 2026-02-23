@@ -1,0 +1,114 @@
+import requests
+import json
+from requests.auth import HTTPBasicAuth
+from datetime import datetime, timedelta
+
+# --- CONFIGURATION ---
+API_USERNAME = "4lQbm0CgLBZQkzIiPnwWnjCQqgEdXsP6mVQ6q7nX24Y="
+API_PASSWORD = "70JK3u4z/IxrGdpdSUE4csPfzlg/wgGTcuAgUgbd+j4="
+STORE_ID = "ea344f50-5af3-4de1-814c-0c45171a2353"
+BASE_URL = "https://storeapi.parcelninja.com/api/v1/inbounds"
+
+# Set this to True to see the raw JSON structure (Schema) of the API response
+SCHEMA_INSPECTION_MODE = True
+
+def fetch_recent_inbounds(days=14, limit=5):
+    auth = HTTPBasicAuth(API_USERNAME, API_PASSWORD)
+    headers = {"Accept": "application/json", "X-Store-Id": STORE_ID}
+    
+    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+    end_date = datetime.now().strftime("%Y%m%d")
+    
+    params = {
+        "pageSize": limit,
+        "page": 1,
+        "startDate": start_date,
+        "endDate": end_date,
+        "col": 4,        # Sort by Date Created
+        "colOrder": "desc"
+    }
+
+    print(f"Fetching Inbounds created since {start_date}...\n")
+
+    try:
+        # Step 1: Get the list summary
+        res = requests.get(BASE_URL, auth=auth, headers=headers, params=params)
+        if res.status_code != 200:
+            print(f"Error {res.status_code}: {res.text}")
+            return
+
+        inbounds_list = res.json().get('inbounds', [])
+        if not inbounds_list:
+            print("No inbounds found.")
+            return
+
+        for i, summary in enumerate(inbounds_list, 1):
+            ib_id = summary.get('id')
+            
+            # Step 2: Fetch Detailed Events (The most complete data set/schema)
+            event_res = requests.get(f"{BASE_URL}/{ib_id}/events", auth=auth, headers=headers)
+            
+            latest_status = "Unknown"
+            detailed_data = summary # Fallback
+            
+            if event_res.status_code == 200:
+                detailed_data = event_res.json()
+                
+                # SCHEMA INSPECTION: Print the raw JSON for the first record
+                if SCHEMA_INSPECTION_MODE and i == 1:
+                    print("!!! FULL INBOUND SCHEMA DATA !!!")
+                    print(json.dumps(detailed_data, indent=2))
+                    print("=" * 50 + "\n")
+                
+                events = detailed_data.get('events', [])
+                if events:
+                    latest_status = events[0].get('description')
+
+            # Extracting fields
+            d_info = detailed_data.get('deliveryInfo', {})
+            p_info = detailed_data.get('pickupInfo', {}) 
+            inbound_type = detailed_data.get('type', {}).get('description') or 'N/A'
+
+            print(f"--- INBOUND REPORT #{i} ---")
+            print(f"Parcelninja ID: {detailed_data.get('id')}")
+            print(f"Client Ref: {detailed_data.get('clientId')}")
+            print(f"Parcelninja Channel ID: {detailed_data.get('channelId') or 'N/A'}")
+            print(f"Inbound Type: {inbound_type}")
+            print(f"Supplier Ref: {detailed_data.get('supplierReference') or 'N/A'}")
+            print(f"Current Status: {latest_status}")
+            print(f"Created: {detailed_data.get('createDate')}")
+            
+            customer = d_info.get('customer') or p_info.get('recipient') or 'N/A'
+            contact = d_info.get('contactNo') or p_info.get('phone') or 'N/A'
+            
+            print(f"\n[Sender: {customer} | Contact: {contact}]")
+            
+            # Address Construction
+            addr_obj = p_info if p_info.get('addressLine1') else d_info
+            addr_parts = [addr_obj.get('addressLine1'), addr_obj.get('addressLine2'), addr_obj.get('suburb'), addr_obj.get('postalCode')]
+            print(f"Address: {', '.join([str(p) for p in addr_parts if p]) or 'N/A'}")
+            
+            print(f"Courier: {d_info.get('courierName') or 'N/A'} | Waybill: {d_info.get('trackingNo') or 'N/A'}")
+
+            # Step 3: Detailed Items List
+            items = detailed_data.get('items', [])
+            print(f"\n[Items List - {len(items)} SKU(s)]")
+            for item in items:
+                sku = item.get('itemNo')
+                name = item.get('name') or "No Name"
+                qty = item.get('qty') or item.get('receivedQty') or 0
+                print(f"  - {sku} | {name} | Qty: {qty}")
+                
+                # Variance check
+                expected = item.get('qty', 0)
+                received = item.get('receivedQty', 0)
+                if received != expected and received != 0:
+                    print(f"    ⚠️ VARIANCE: Expected {expected}, Received {received}")
+
+            print("-" * 40 + "\n")
+
+    except Exception as e:
+        print(f"Request failed: {e}")
+
+if __name__ == "__main__":
+    fetch_recent_inbounds()

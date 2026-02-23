@@ -1,0 +1,64 @@
+Parcelninja API Integration Strategy (LSSA Reporting)
+
+1. Connection Metadata
+
+Base URL: https://storeapi.parcelninja.com/api/v1
+
+Authentication: Basic Auth (Username/Password)
+
+Required Header: X-Store-Id: ea344f50-5af3-4de1-814c-0c45171a2353
+
+Data Format: JSON
+
+2. Key Discovery: Multi-Step Retrieval
+
+The Parcelninja API requires a "Fetch & Drill-down" pattern to retrieve all necessary reporting fields:
+
+Step A: Identify Shipments (The List)
+
+Endpoint: /outbounds
+
+Purpose: Find recent shipments using startDate and sorting (orderBy=createDate, orderDirection=desc).
+
+Limitation: This endpoint only provides high-level IDs and basic statuses.
+
+Step B: Get Detailed Metadata (The Events)
+
+Endpoint: /outbounds/{id}/events
+
+Purpose: This is the most comprehensive endpoint. It contains:
+
+channelId: The primary reference for LSSA IDs (e.g., LSSA-77015).
+
+clientId: The internal system reference.
+
+items: Full array of items in the order.
+
+events: The historical timeline of the shipment.
+
+Step C: Resolve Descriptive Names (The Inventory)
+
+Endpoint: /inventory/{sku}
+
+Purpose: Because the Outbound API often returns the SKU in the name field, a secondary lookup is required to get the actual "Inventory Name" (e.g., "Sennheiser G4ME Zero").
+
+Optimization: Implement caching for SKU lookups to prevent redundant API calls.
+
+3. Data Mapping Table
+
+| Reporting Field | API Key Path (from /events) | Notes |
+| LSSA Reference | channelId | Contains the LSSA identifier. |
+| Order ID | clientId | Internal reference. |
+| Parcelninja ID | id | Unique ID in the warehouse system. |
+| Item SKU | items[].itemNo | Unique product code. |
+| Product Name | GET /inventory/{sku} -> name | Requires cross-reference. |
+| Status | status.description | Current state (Delivered, Dispatched, etc.). |
+| RMA Reason | items[].returnReason | Present only on returns/RMAs. |
+
+4. Usage in AI Studio
+
+To allow the AI to build reports or troubleshoot this integration:
+
+Prompt: "Use the attached parcelninja_outbounds.py as the logic base and the parcelninja_integration_guide.md as the data schema. Create a reporting function that aggregates items by LSSA Reference."
+
+Context: Ensure the AI knows that channelId is the unique field for LSSA tracking.

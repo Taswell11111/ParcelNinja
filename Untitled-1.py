@@ -6,11 +6,11 @@ import sys
 # It's best practice to set your API key as an environment variable
 # In your terminal, run: export GOOGLE_API_KEY="YOUR_API_KEY"
 try: 
-    api_key = os.environ["GOOGLE_API_KEY"]
+    api_key = os.environ["GOOGLE_API_KEY2"]
     genai.configure(api_key=api_key)
 except KeyError: 
     print("🚨 Error: GOOGLE_API_KEY environment variable not set.") 
-    print("Please set it by running: export GOOGLE_API_KEY='YOUR_API_KEY'")
+    print("Please set it by running: export GOOGLE_API_KEY2='YOUR_API_KEY'")
     sys.exit(1)
 
 # --- Model Initialization ---

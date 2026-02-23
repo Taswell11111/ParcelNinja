@@ -23,7 +23,8 @@ if __name__ == "__main__":
         # Join all command-line arguments to form the prompt
         prompt = " ".join(sys.argv[1:])
 
-        print(f"💬 Sending to Gemini: '{prompt}'\n")
+        print(f"💬 Sending to Gemini: '{prompt}'
+")
 
         try:
             response = model.generate_content(prompt, stream=True)
@@ -52,8 +53,10 @@ if __name__ == "__main__":
                     print(chunk.text, end="", flush=True)
                 print() # Newline after Gemini's response
             except KeyboardInterrupt:
-                print("\n👋 Goodbye!")
+                print("
+👋 Goodbye!")
                 break
             except Exception as e:
-                print(f"\nAn error occurred: {e}")
+                print(f"
+An error occurred: {e}")
                 break

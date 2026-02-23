@@ -9,38 +9,21 @@ import json
 # STORE CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-STORES = {
-    "Diesel": {
-        "username": "ENgsxyMbeqVGvGzTCpVdkZmsjz/VCDeF+NWHlRk3Hk0=",
-        "password": "EuoTNvCvp5imhOR2TZDe/fnKDxfoPK+EORSqfGvafZk=",
-        "store_id": "7b0fb2ac-51bd-47ea-847e-cfb1584b4aa2",
-    },
-    "Hurley": {
-        "username": "CtAAy94MhKTJClgAwEfQL9LfkM14CegkeUbpBfhwt68=",
-        "password": "AmlbcKtg1WQsLuivLpjyOTVizNrijZiXY6vVJoT5a1U=",
-        "store_id": "a504304c-ad27-4b9b-8625-92a314498e64",
-    },
-    "Jeep Apparel": {
-        "username": "+w3K5hLq56MQ4ijqFH78lV0xQCTTzP9mNAqToCUL9Cw=",
-        "password": "l2+ozGqsA6PX7MSHrl4OMwZRTieKzUpJVWv/WYye8iA=",
-        "store_id": "80f123d6-f9de-45b9-938c-61c0a358f205",
-    },
-    "Superdry": {
-        "username": "zcUrzwFh2QwtH1yEJixFXtUA4XGQyx2wbNVLpYTzZ8M=",
-        "password": "92Av8tHsbq2XLEZZeRwYNsPFSkca+dD1cwRQs79rooM=",
-        "store_id": "b112948b-0390-4833-8f41-47f997c5382c",
-    },
-    "Reebok": {
-        "username": "9oZ10dMWlyQpEmS0Kw6xhIcKYXw8lB2az3Q0Zb+KBAw=",
-        "password": "Cq/Zn86P7FT3EN0C5qzOewAQssyvrDSbkzmQBSAOrMY=",
-        "store_id": "963f57af-6f46-4d6d-b07c-dc4aa684cdfa",
-    },
-    "Levi's": {
-        "username": "4IQbm0CgLBZQkzliPnwWnjCQqgEdXsP6mVQ6q7nX24Y=",
-        "password": "70JK3u4z/lxrGdpdSUE4csPfzlg/wgGTcuAgUgbd+j4=",
-        "store_id": "ea344f50-5af3-4de1-814c-0c45171a2353",
-    },
-}
+import streamlit as st
+
+def _load_stores():
+    s = st.secrets
+    return {
+        "Diesel":       {"username": s["diesel"]["username"],       "password": s["diesel"]["password"],       "store_id": s["diesel"]["store_id"]},
+        "Hurley":       {"username": s["hurley"]["username"],       "password": s["hurley"]["password"],       "store_id": s["hurley"]["store_id"]},
+        "Jeep Apparel": {"username": s["jeep_apparel"]["username"], "password": s["jeep_apparel"]["password"], "store_id": s["jeep_apparel"]["store_id"]},
+        "Superdry":     {"username": s["superdry"]["username"],     "password": s["superdry"]["password"],     "store_id": s["superdry"]["store_id"]},
+        "Reebok":       {"username": s["reebok"]["username"],       "password": s["reebok"]["password"],       "store_id": s["reebok"]["store_id"]},
+        "Levi's":       {"username": s["levis"]["username"],        "password": s["levis"]["password"],        "store_id": s["levis"]["store_id"]},
+    }
+
+STORES = _load_stores()
+
 
 BASE_URL = "https://storeapi.parcelninja.com/api/v1"
 PAGE_SIZE = 50

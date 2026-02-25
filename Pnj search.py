@@ -473,6 +473,11 @@ h1, h2, h3 {
     width: 100%;
 }
 
+.stButton > button.selected {
+    background: linear-gradient(135deg, #4285f4, #1a73e8);
+    border: 1px solid #8ab4f8;
+}
+
 .stButton > button:hover {
     background: linear-gradient(135deg, #4285f4, #1a73e8);
 }
@@ -544,23 +549,36 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ── Session State Initialization ─────────────────────────────────────────────
+if 'selected_stores' not in st.session_state:
+    st.session_state.selected_stores = set(STORES.keys())
+
 # ── Search Configuration ────────────────────────────────────────────────────
 main_config_col, help_col = st.columns([3, 1])
 
 with main_config_col:
     # Stores and Date Range
     st.markdown("##### **Stores & Date Range**")
+    
+    # Store buttons
+    store_cols = st.columns(len(STORES))
+    for i, store_name in enumerate(STORES.keys()):
+        with store_cols[i]:
+            selected = store_name in st.session_state.selected_stores
+            button_label = f"✅ {store_name}" if selected else store_name
+            if st.button(button_label, key=f"store_btn_{store_name}", use_container_width=True):
+                if selected:
+                    st.session_state.selected_stores.remove(store_name)
+                else:
+                    st.session_state.selected_stores.add(store_name)
+                st.experimental_rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     with col1:
-        selected_stores = st.multiselect(
-            "Stores",
-            options=list(STORES.keys()),
-            default=list(STORES.keys()),
-            help="Search across selected stores simultaneously",
-            label_visibility="collapsed"
-        )
-    with col2:
         start_date = st.date_input("From", value=datetime.now() - timedelta(days=180))
+    with col2:
         end_date = st.date_input("To", value=datetime.now())
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -609,6 +627,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Search Execution ─────────────────────────────────────────────────────────
 if search_clicked and query.strip():
+    selected_stores = list(st.session_state.selected_stores)
     if not selected_stores:
         st.warning("Select at least one store.")
         st.stop()
